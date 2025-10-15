@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>格言スライダー</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        .slider-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .quote-display {
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            margin-bottom: 25px;
+            padding: 0 10px;
+        }
+
+        .quote-text {
+            font-size: clamp(18px, 4vw, 24px);
+            line-height: 1.6;
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-weight: 500;
+            opacity: 0;
+            animation: fadeIn 0.6s ease-in forwards;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .quote-author {
+            font-size: clamp(14px, 3vw, 16px);
+            color: #718096;
+            font-style: italic;
+            opacity: 0;
+            animation: fadeIn 0.6s ease-in 0.2s forwards;
+        }
+
+        /* タブレット対応 */
+        @media (min-width: 768px) {
+            .slider-container {
+                padding: 40px 35px;
+            }
+
+            .quote-display {
+                min-height: 150px;
+                margin-bottom: 30px;
+            }
+        }
+
+        /* PC対応 */
+        @media (min-width: 1024px) {
+            body {
+                padding: 20px;
+            }
+
+            .slider-container {
+                padding: 40px;
+            }
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .nav-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            flex-shrink: 0;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .nav-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .nav-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* タブレット・PC用のボタンサイズ */
+        @media (min-width: 768px) {
+            .controls {
+                gap: 20px;
+                margin-top: 30px;
+            }
+
+            .nav-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+
+        .quote-counter {
+            font-size: 14px;
+            color: #718096;
+            margin-top: 15px;
+        }
+
+        .no-quotes {
+            color: #e53e3e;
+            font-size: 18px;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slider-container">
+        <div class="quote-display" id="quoteDisplay">
+            <div class="quote-text" id="quoteText"></div>
+            <div class="quote-author" id="quoteAuthor"></div>
+        </div>
+        
+        <div class="controls">
+            <button class="nav-btn" id="prevBtn" aria-label="前の格言">◀</button>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <button class="nav-btn" id="nextBtn" aria-label="次の格言">▶</button>
+        </div>
+        
+        <div class="quote-counter" id="counter"></div>
+    </div>
+
+    <script>
+        // URLパラメータから格言を取得
+        function getQuotesFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            const quotesParam = params.get('quotes');
+            
+            if (quotesParam) {
+                try {
+                    return JSON.parse(decodeURIComponent(quotesParam));
+                } catch (e) {
+                    console.error('格言の解析エラー:', e);
+                }
+            }
+            
+            // デフォルトの格言
+            return [
+                { text: "千里の道も一歩から", author: "老子" },
+                { text: "継続は力なり", author: "日本のことわざ" },
+                { text: "失敗は成功のもと", author: "日本のことわざ" }
+            ];
+        }
+
+        const quotes = getQuotesFromURL();
+        let currentIndex = 0;
+
+        const quoteText = document.getElementById('quoteText');
+        const quoteAuthor = document.getElementById('quoteAuthor');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressFill = document.getElementById('progressFill');
+        const counter = document.getElementById('counter');
+        const quoteDisplay = document.getElementById('quoteDisplay');
+
+        function displayQuote(index) {
+            if (quotes.length === 0) {
+                quoteDisplay.innerHTML = '<div class="no-quotes">格言が設定されていません</div>';
+                return;
+            }
+
+            // アニメーションをリセット
+            quoteText.style.animation = 'none';
+            quoteAuthor.style.animation = 'none';
+            
+            setTimeout(() => {
+                quoteText.textContent = `"${quotes[index].text}"`;
+                quoteAuthor.textContent = `— ${quotes[index].author}`;
+                
+                quoteText.style.animation = 'fadeIn 0.6s ease-in forwards';
+                quoteAuthor.style.animation = 'fadeIn 0.6s ease-in 0.2s forwards';
+            }, 50);
+
+            updateProgress();
+            updateCounter();
+        }
+
+        function updateProgress() {
+            const progress = ((currentIndex + 1) / quotes.length) * 100;
+            progressFill.style.width = `${progress}%`;
+        }
+
+        function updateCounter() {
+            counter.textContent = `${currentIndex + 1} / ${quotes.length}`;
+        }
+
+        function nextQuote() {
+            currentIndex = (currentIndex + 1) % quotes.length;
+            displayQuote(currentIndex);
+        }
+
+        function prevQuote() {
+            currentIndex = (currentIndex - 1 + quotes.length) % quotes.length;
+            displayQuote(currentIndex);
+        }
+
+        prevBtn.addEventListener('click', prevQuote);
+        nextBtn.addEventListener('click', nextQuote);
+
+        // キーボード操作
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') prevQuote();
+            if (e.key === 'ArrowRight') nextQuote();
+        });
+
+        // 初期表示
+        displayQuote(currentIndex);
+    </script>
+</body>
+</html>
